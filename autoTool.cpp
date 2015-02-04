@@ -73,7 +73,7 @@ void batch_query(	const char* queryImageDir,
 	stringstream ssRecordData;
 	saveFileD << "ImageID \t cost time \t top1_score \t top1_result \t top2_score \t top2_result \t top3_score \t top3_result \t top4_score \t top4_result \t top5_score \t top5_result \n";
 	saveFileD << ssRecordData;
-	saveFileD.close();
+	//saveFileD.close();
 	#endif
 
 	//uint64       startTime = NOW_TIME;//start time of test//avoid third part lib
@@ -209,13 +209,8 @@ void batch_query(	const char* queryImageDir,
 				#if PRINT_EVERY_DETAIL
 				ssRecordData << "\n";//start to record next query
 				
-				saveFileD.open(filePathD.c_str(), fstream::out | fstream::app);
-				if(!saveFileD.is_open()){
-					cout << "open file failed!" << endl;
-					return;
-				}
 				saveFileD << ssRecordData;
-				saveFileD.close();
+				//saveFileD.close();
 
 				ssRecordData.clear();
 				ssRecordData.str() == "";
@@ -254,6 +249,9 @@ void batch_query(	const char* queryImageDir,
 	saveFile << "------------------------------------------------------------------------------------\n";
 
 	saveFile.close();
+	#if PRINT_EVERY_DETAIL
+	saveFileD.close();
+	#endif
 }
 
 
