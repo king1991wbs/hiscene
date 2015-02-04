@@ -189,10 +189,6 @@ void batch_query(	const char* queryImageDir,
 								#endif
 							}
 
-							#if PRINT_EVERY_DETAIL
-
-							#endif
-
 							string trainImgName = docID + ".jpg";
 
 							stringstream ss;
