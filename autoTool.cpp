@@ -60,8 +60,22 @@ void batch_query(	const char* queryImageDir,
 				 	reco_instance_handle& h,
 				 	int topN,
 				 	const char* resultDir){
+	#if PRINT_EVERY_DETAIL
+	//open a file and save data in
+	fstream saveFileD;
+	string filePathD = "test_detail.txt";
+	saveFileD.open(filePathD.c_str(), fstream::out | fstream::app);
+	if(!saveFileD.is_open()){
+		cout << "open file failed!" << endl;
+		return;
+	}
 	//define an streamstring to store data
 	stringstream ssRecordData;
+	saveFileD << "ImageID \t cost time \t top1_score \t top1_result \t top2_score \t top2_result \t top3_score \t top3_result \t top4_score \t top4_result \t top5_score \t top5_result \n";
+	saveFileD << ssRecordData;
+	saveFileD.close();
+	#endif
+
 	//uint64       startTime = NOW_TIME;//start time of test//avoid third part lib
 	time_t       startTime;
 	time(&startTime);
@@ -73,11 +87,11 @@ void batch_query(	const char* queryImageDir,
     //int top1_hit = 0, topN_hit = 0;num_noReturn = 0;
 
     //the number of query images that exist a match,and the number of query images that there is no match
-    int num_exist = 0+1, num_nomatch = 0+1;//positive and negative--incase the denominator equal 0
-    int num_top1_precog = 0, num_top1_nreject = 0;//p=positve-----n=negative----means exist match and no match
-    int num_topN_precog = 0, num_topN_nreject = 0;
-    //int num_exist_top1_hit = 0, num_exist_top5_hit = 0;
-    //int num_nomatch_top1_hit = 0, num_nomatch_top5_hit = 0;
+    int inlier = 0+1, outlier = 0+1;//positive and negative--incase the denominator equal 0
+    int num_top1_inrecg = 0, num_outreject = 0;//p=positve-----n=negative----means exist match and no match
+    int num_topN_inrecg = 0;
+    //int inlier_top1_hit = 0, inlier_top5_hit = 0;
+    //int outlier_top1_hit = 0, outlier_top5_hit = 0;
 
 	try{
 		dirInfo	= opendir(queryImageDir);
@@ -92,14 +106,16 @@ void batch_query(	const char* queryImageDir,
 				bool noMatch = false;
 				//if the image name string contain substring "nomatch" that means there is no match image in training set
 				if(queryImgID.find("nomatch") == string::npos)
-					++num_exist;
+					++inlier;
 				else{
 					noMatch = true;
-					++num_nomatch;
+					++outlier;
 					
 				}
 
+				#if PRINT_EVERY_DETAIL
 				ssRecordData << queryImgID << "\t";//record query image name
+				#endif
 
 				if(queryImgName.find(".jpg")  == string::npos &&
                    queryImgName.find(".JPG")  == string::npos &&
@@ -132,14 +148,15 @@ void batch_query(	const char* queryImageDir,
                 //record time in second, save in  txt
                 time_t et;
                 time(&et);
+                #if PRINT_EVERY_DETAIL
                 ssRecordData << (int)difftime(et, st) << "\t";//record time per image cost in recognition and search
                 //ssRecordData << NOW_TIME - st << "\t";//record time per image cost in recognition and search
+                #endif
 
 				//find no matches
                 if(result.nMatched == 0) {
                 	if(noMatch){
-                		++num_top1_nreject;
-                		++num_topN_nreject;
+                		++num_outreject;
                 	}
                     //num_noReturn ++;
                 }
@@ -151,20 +168,30 @@ void batch_query(	const char* queryImageDir,
 						for(int i=0; i<result.nMatched; i++){
 							string docID(result.pMatchList[i].docID);//理解为匹配的图像名
 
+							#if PRINT_EVERY_DETAIL
 							ssRecordData << result.pMatchList[i].matchingScore << "\t";//top i score
+							#endif
+
 							if(!queryImgID.compare(docID)){
 								if(0 == i)
-									++num_top1_precog;
+									++num_top1_inrecg;
 								if(!topNIncd){
-									++num_topN_precog;
+									++num_topN_inrecg;
 									topNIncd = true;
 								}
-
+								#if PRINT_EVERY_DETAIL
 								ssRecordData << "True" << "\t";//correctly matched
+								#endif
 							}
 							else{
+								#if PRINT_EVERY_DETAIL
 								ssRecordData << "False" << "\t";
+								#endif
 							}
+
+							#if PRINT_EVERY_DETAIL
+
+							#endif
 
 							string trainImgName = docID + ".jpg";
 
@@ -179,7 +206,20 @@ void batch_query(	const char* queryImageDir,
 
 						delete []result.pMatchList;
 				}//end if
+				#if PRINT_EVERY_DETAIL
 				ssRecordData << "\n";//start to record next query
+				
+				saveFileD.open(filePathD.c_str(), fstream::out | fstream::app);
+				if(!saveFileD.is_open()){
+					cout << "open file failed!" << endl;
+					return;
+				}
+				saveFileD << ssRecordData;
+				saveFileD.close();
+
+				ssRecordData.clear();
+				ssRecordData.str() == "";
+				#endif
 
 				g_nTotalQuery ++;
 
@@ -205,14 +245,13 @@ void batch_query(	const char* queryImageDir,
 	saveFile << "Test Time               :\t" << testTime << "\n";
 	saveFile << "Training data directory :\t" << trainImageDir << "\n";
 	saveFile << "Testing  data directory :\t" << queryImageDir << "\n";
-	saveFile << "\t correct recognize \t correct reject \t false positive \t false negative" << "\n";
-	saveFile << "top1  " << float(num_top1_precog)/num_exist << "\t" << float(num_top1_nreject)/num_nomatch << "\t"
-						 << float(num_nomatch - num_top1_nreject)/num_nomatch << "\t" << float(num_exist - num_top1_precog)/num_exist << "\n";
-	saveFile << "top5  " << float(num_topN_precog)/num_exist << "\t" << float(num_topN_nreject)/num_nomatch << "\t"
-						 << float(num_nomatch - num_topN_nreject)/num_nomatch << "\t" << float(num_exist - num_topN_precog)/num_exist << "\n";
-	saveFile << "ImageID \t cost time \t top1_score \t top1_result \t top2_score \t top2_result \t top3_score \t top3_result \t top4_score \t top4_result \t top5_score \t top5_result";
-	saveFile << ssRecordData;
-	saveFile << "------------------------------------------------------------------------------------";
+	saveFile << "\t total recognize rate\t inlier recognize rate \t outlier reject rate" << "\n";
+	saveFile << "top1  " << float( num_top1_inrecg + num_outreject )/( inlier + outlier ) << "\t"
+						 << float( num_top1_inrecg )/inlier << "\t" << float( num_outreject )/outlier << "\n";
+	saveFile << "top5  " << float( num_topN_inrecg + num_outreject )/( inlier + outlier ) << "\t"
+						 << float( num_topN_inrecg )/inlier << "\t" << float( num_outreject )/outlier << "\n";
+	
+	saveFile << "------------------------------------------------------------------------------------\n";
 
 	saveFile.close();
 }
